@@ -32,26 +32,26 @@ class ViewController: UITableViewController {
             // sets the view controller to display the popular petitions
             urlString = "https://api.whitehouse.gov/v1/petitions.json?signatureCountFloor=10000&limit=100"
         }
+    }
         
         func showError() {
+            DispatchQueue.main.async { [weak self] in
             let ac = UIAlertController(title: "Loading error", message: "There was a problem loading the feed; please check your connection and try again", preferredStyle: .alert)
             ac.addAction(UIAlertAction(title: "OK", style: .default))
-            present(ac, animated: true)
+            self?.present(ac, animated: true)
+            }
         }
        
-        
-        if let url = URL(string: urlString) {
-            if let data = try? Data(contentsOf: url) {
-                // we're OK to parse!
-                parse(json: data)
-            } else {
-                // there was an error
-                showError()
+        // multithread parsing to prevent ui from freezing up when accesing data
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            if let url = URL(string: urlString) {
+                if let data = try? Data(contentsOf: url) {
+                    // we're OK to parse!
+                    self?.parse(json: data)
+                    return
+                }
             }
-        } else {
-            // no url
-            showError()
-        }
+                self?.showError()
     }
     
     func parse(json: Data) {
@@ -60,7 +60,9 @@ class ViewController: UITableViewController {
         if let jsonPetitions = try? decoder.decode(Petitions.self, from: json) {
             petitions = jsonPetitions.results
             filteredPetitions = petitions
-            tableView.reloadData()
+            DispatchQueue.main.async { [weak self] in
+                self?.tableView.reloadData()
+            }
         }
     }
 
